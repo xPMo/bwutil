@@ -2,6 +2,9 @@
 
 setopt warn_create_global extended_glob
 
+typeset -g default_note='Imported from password-store'
+typeset -g item_template
+
 convert_target(){
 	# TODO: allow user-defined rules to convert path to name
 	# e.g.: "site.com/name" -> "Site - Name"
@@ -23,11 +26,11 @@ json_uri(){ # match uri
 text_to_json(){ # TARGET
 	: ${1:?$0: Missing parameter [TARGET]}
 	convert_target $1
-	local pass_target=$1 bw_target=$REPLY
+	local pass_target=$1 name=$REPLY
 	local -a in_fields=(${(f)"$(pass show $1)"})
-	local -a out_fields out_uris
+	local -a out_fields out_uris notes
 	local pass=$in_fields[1]
-	local field totp user revdate idx
+	local field totp user idx
 
 	for ((idx = 2; idx <= $#in_fields; idx++)){
 		field=$in_fields[idx]
@@ -46,6 +49,9 @@ text_to_json(){ # TARGET
 				out_uris+=(
 					"$(json_uri 4 "${field##[^:]#:[[:space:]]#}")"
 				) ;;
+			note[^:]#:*|info[^:]#:*)
+				notes+=(${field##[^:]#:[[:space:]]$})
+				;;
 			git:*) # pass-git-helper
 				# might be of form "git: user.key: val"
 				# not much we can do about it...
@@ -64,11 +70,19 @@ text_to_json(){ # TARGET
 		esac
 	}
 
-	bw get template item |
-	jq '.login = { "username": $user, "password": $pass, "totp": $totp, "uris": $uris} | .fields = $fields' \
+	# Use template from bw
+	: ${item_template:="$(bw get template item)"}
+
+	jq --null-input '$template
+		| .name = $name | .notes = $note
+		| .login = { "username": $user, "password": $pass, "totp": $totp, "uris": $uris}
+		| .fields = $fields' \
+		--arg name "$name" \
+		--arg note "${(F)notes:-$default_note}" \
 		--arg pass "$pass" \
 		--arg user "$user" \
 		--arg totp "$totp" \
+		--argjson template "$item_template" \
 		--argjson fields "[${(j[,])out_fields}]" \
 		--argjson uris   "[${(j[,])out_uris}]"
 }
