@@ -6,6 +6,7 @@ Tool to import zx2c4 password store into Bitwarden
 
 - `pass` ("The Standard Unix Password Manager")
 - `zsh` ("The Programmer's Shell")
+- `jq` (Command-line JSON parser)
 - `bw` (Bitwarden CLI client)
 
 ## Usage
