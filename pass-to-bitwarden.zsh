@@ -23,6 +23,24 @@ json_uri(){ # match uri
 		--arg uri "${2?$0: Missing parameter [URI]}"
 }
 
+text_to_json::build(){
+	# Use template from bw
+	: ${item_template:="$(bw get template item)"}
+
+	jq --null-input '$template
+		| .name = $name | .notes = $note
+		| .login = { "username": $user, "password": $pass, "totp": $totp, "uris": $uris}
+		| .fields = $fields' \
+		--arg name "$name" \
+		--arg note "${(F)notes:-$default_note}" \
+		--arg pass "$pass" \
+		--arg user "$user" \
+		--arg totp "$totp" \
+		--argjson template "$item_template" \
+		--argjson fields "[${(j[,])out_fields}]" \
+		--argjson uris   "[${(j[,])out_uris}]"
+}
+
 text_to_json(){ # TARGET
 	: ${1:?$0: Missing parameter [TARGET]}
 	convert_target $1
@@ -69,25 +87,12 @@ text_to_json(){ # TARGET
 				;;
 		esac
 	}
+	if [[ -n $dry_run ]]; then
+		text_to_json::build
+	else
+		text_to_json::build | bw encode | bw create item
+	fi
 
-	# Use template from bw
-	: ${item_template:="$(bw get template item)"}
-
-	jq --null-input '$template
-		| .name = $name | .notes = $note
-		| .login = { "username": $user, "password": $pass, "totp": $totp, "uris": $uris}
-		| .fields = $fields' \
-		--arg name "$name" \
-		--arg note "${(F)notes:-$default_note}" \
-		--arg pass "$pass" \
-		--arg user "$user" \
-		--arg totp "$totp" \
-		--argjson template "$item_template" \
-		--argjson fields "[${(j[,])out_fields}]" \
-		--argjson uris   "[${(j[,])out_uris}]"
-}
-
-help(){
 }
 
 # MAIN
