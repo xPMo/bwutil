@@ -1,14 +1,25 @@
 #!/usr/bin/env zsh
 
-setopt warn_create_global extended_glob
+setopt warn_create_global extended_glob glob_dots
 
 typeset -g default_note='Imported from password-store'
 typeset -g item_template
+typeset -g help_text="Usage: $0 [OPTIONS] pass-name ...
 
+OPTIONS:
+	-A, --all               Import all passwords, ignore the commnd line pass-names
+	    --session SESSION   Set BW_SESSION (see \`bw unlock --help\`)
+	-h, --help              Show this help
+"
+
+die(){
+	print -u2 -l "${@:2}"
+	exit "$1"
+}
 convert_target(){
 	# TODO: allow user-defined rules to convert path to name
 	# e.g.: "site.com/name" -> "Site - Name"
-	typeset -g REPLY=$1
+	REPLY=$1
 }
 
 json_field(){ # name value [type=0]
@@ -101,8 +112,26 @@ text_to_json(){ # TARGET
 	zmodload zsh/zutil
 	zparseopts -D -E -F - \
 		-session=session \
+		-all=all A=all \
 		-help=help h=help \
+		|| die 1 "$help_text"
 	
+	(($#help)) &&
+		die 0 "$help_text"
+
+	if (($#all)); then
+		local dir=${${PASSWORD_STORE_DIR-$HOME/.password-store}:-$PWD}
+		# get every gpg file
+		set -- $dir/**/*.gpg
+		# remove prefix
+		set -- ${@##$dir/#}
+		# remove suffix
+		set -- ${@%.gpg}
+		# test if pass works with the first file
+		pass show "$1" >/dev/null 2>&1 ||
+			die 1 "No password directory found at $dir"
+	fi
+
 	# unlock vault if not already
 	[[ $session ]] &&
 		export BW_SESSION=$session
