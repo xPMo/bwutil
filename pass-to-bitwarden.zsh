@@ -92,7 +92,7 @@ help(){
 
 # MAIN
 (){
-	local -a
+	local -a session help
 	zmodload zsh/zutil
 	zparseopts -D -E -F - \
 		-session=session \
@@ -101,6 +101,10 @@ help(){
 	# unlock vault if not already
 	[[ $session ]] &&
 		export BW_SESSION=$session
-	bw unlock --check ||
-		export BW_SESSION=$(bw unlock --raw)
-}
+	bw unlock --raw --check ||
+		export BW_SESSION=$(bw unlock --raw < $TTY)
+	local arg
+	for arg;{
+		text_to_json "$arg"
+	}
+} "$@"
