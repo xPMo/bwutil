@@ -54,12 +54,15 @@ text_to_json::build(){
 
 text_to_json(){ # TARGET
 	: ${1:?$0: Missing parameter [TARGET]}
-	convert_target $1
-	local pass_target=$1 name=$REPLY
-	local -a in_fields=(${(f)"$(pass show $1)"})
-	local -a out_fields out_uris notes
-	local pass=$in_fields[1]
-	local field totp user idx
+
+	local REPLY
+	convert_target "$1"
+	local field totp user idx pass name=$REPLY
+	local -a in_fields out_fields out_uris notes
+
+	in_fields=(${(f)"$(pass show $1)"}) ||
+		die 1
+	pass=$in_fields[1]
 
 	for ((idx = 2; idx <= $#in_fields; idx++)){
 		field=$in_fields[idx]
