@@ -9,6 +9,7 @@ typeset -g help_text="Usage: $0 [OPTIONS] pass-name ...
 OPTIONS:
 	-A, --all               Import all passwords, ignore the commnd line pass-names
 	    --session SESSION   Set BW_SESSION (see \`bw unlock --help\`)
+	-n, --dry_run           Set BW_SESSION (see \`bw unlock --help\`)
 	-h, --help              Show this help
 "
 
@@ -101,7 +102,7 @@ text_to_json(){ # TARGET
 				;;
 		esac
 	}
-	if [[ -n $dry_run ]]; then
+	if (($#dry_run)); then
 		text_to_json::build
 	else
 		text_to_json::build | bw encode | bw create item
@@ -111,10 +112,11 @@ text_to_json(){ # TARGET
 
 # MAIN
 (){
-	local -a session help
+	local -a session help dry_run all
 	zmodload zsh/zutil
 	zparseopts -D -E -F - \
 		-session=session \
+		-dry-run=dry_run n=dry_run \
 		-all=all A=all \
 		-help=help h=help \
 		|| die 1 "$help_text"
