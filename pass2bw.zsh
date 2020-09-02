@@ -4,12 +4,14 @@ setopt warn_create_global extended_glob glob_dots
 
 typeset -g default_note='Imported from password-store'
 typeset -g item_template
+typeset -gi debug_level
 typeset -g help_text="Usage: $0 [OPTIONS] pass-name ...
 
 OPTIONS:
 	-A, --all               Import all passwords, ignore the commnd line pass-names
 	    --session SESSION   Set BW_SESSION (see \`bw unlock --help\`)
 	-n, --dry_run           Set BW_SESSION (see \`bw unlock --help\`)
+	-v, --verbose           Increase verbosity
 	-h, --help              Show this help
 "
 
@@ -17,10 +19,22 @@ die(){
 	print -u2 -l "${@:2}"
 	exit "$1"
 }
+debug(){
+	((debug_level > $1)) || return
+	print -u2 "${@:2}"
+}
 convert_target(){
 	# TODO: allow user-defined rules to convert path to name
 	# e.g.: "site.com/name" -> "Site - Name"
 	REPLY=$1
+	
+	return
+	# One option:
+	local MATCH MBEGIN MEND
+	# replace slashes with " - ", split into words, capitalize first letter of each word
+	# "foo bar/baz" -> "Foo Bar - Baz"
+	REPLY=${${=1//\// - }/(#m)?/${MATCH:u}}
+
 }
 
 json_field(){ # name value [type=0]
@@ -50,7 +64,8 @@ text_to_json::build(){
 		--arg totp "$totp" \
 		--argjson template "$item_template" \
 		--argjson fields "[${(j[,])out_fields}]" \
-		--argjson uris   "[${(j[,])out_uris}]"
+		--argjson uris   "[${(j[,])out_uris}]" \
+		|| die 1 "$0: Error in json"
 }
 
 text_to_json(){ # TARGET
@@ -112,17 +127,23 @@ text_to_json(){ # TARGET
 
 # MAIN
 (){
-	local -a session help dry_run all
+	local -a session help dry_run all flagv flagq keyctl gpg
 	zmodload zsh/zutil
 	zparseopts -D -E -F - \
-		-session=session \
+		-session:=session \
 		-dry-run=dry_run n=dry_run \
+		-verbose+=flagv v+=flagv \
+		-quiet+=flagq q+=flagq \
+		-session-keyctl:=keyctl \
+		-session-gpgagent:=gpg \
 		-all=all A=all \
 		-help=help h=help \
 		|| die 1 "$help_text"
 	
 	(($#help)) &&
 		die 0 "$help_text"
+
+	((debug_level = $#flagv - $#flagq))
 
 	if (($#all)); then
 		local dir=${${PASSWORD_STORE_DIR-$HOME/.password-store}:-$PWD}
@@ -139,11 +160,12 @@ text_to_json(){ # TARGET
 
 	# unlock vault if not already
 	[[ $session ]] &&
-		export BW_SESSION=$session
+		export BW_SESSION=$session[-1]
 	bw unlock --raw --check ||
 		export BW_SESSION=$(bw unlock --raw < $TTY)
 	local arg
 	for arg;{
+		debug 1 "Inserting password: $arg"
 		text_to_json "$arg"
 	}
 } "$@"
