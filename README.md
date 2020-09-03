@@ -1,5 +1,7 @@
 # Bitwarden Command-Line Utilities
 
+Tools to easily manage your Bitwarden Vault on the command-line.
+
 This is a personal project of me replacing my `pass`-based scripts with `bw`-based ones.
 
 **Global Dependencies:**
