@@ -20,7 +20,7 @@ bwutil::get-session(){
 		BW_SESSION=$BW_SESSION
 	elif BW_SESSION=$(command bw unlock --raw); then
 		# Insert new/update old key
-		# "@us": Default user session keyring
+		# "@u": Default user session keyring
 		: $(keyctl add user $key "$BW_SESSION" @u)
 		set +x
 		((timeout > 0)) && keyctl timeout "$_" $timeout
@@ -28,11 +28,14 @@ bwutil::get-session(){
 }
 
 bwutil::edit(){
+	local -x BW_SESSION
+	bwutil::get-session || return $?
+
 	TMPPREFIX=${XDG_RUNTIME_DIR:-/tmp}/bw-edit/
 	TMPSUFFIX=.json
 
-	zmodload zsh/files
-	mkdir $TMPPREFIX
+	zmodload -m -F zsh/files b:'zf_*'
+	mkdir -m 700 $TMPPREFIX
 
 	trap RETURN 'rm -r $TMPPREFIX'
 
@@ -77,15 +80,17 @@ bwutil::fzf(){
 }
 
 bwutil(){
+	emulate -L zsh
 	local action=$functions[(ei)bwutil::$1]
+
+	local -x BW_SESSION
+	bwutil::get-session
+
 	if [[ -n $action ]]; then
 		$action "$@"
 	else
 		print -u2 "No helper function bwutil::$1"
-		local -x BW_SESSION
-		bwutil::get-session
-		bw "$@" ||
-		bwutil::help 1
+		bw "$@" || bwutil::help 1
 	fi
 }
 
