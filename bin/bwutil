@@ -1,0 +1,90 @@
+#!/usr/bin/env zsh
+
+bwutil::help(){
+	print -u2 -l - \
+'Found functions:' \
+"	${(@)^functions[(I)bwutil*]}" \
+"
+Environment variables:
+	BW_KEY         key name given to keyctl
+	BW_TIMEOUT     revokation timeout given to keyctl
+"
+	return "$1"
+}
+
+bwutil::get-session(){
+set -x
+	local key=${BW_KEY:-bw}
+	local -i timeout=${BW_TIMEOUT:-0}
+	: ${key:=bw}
+	if [[ -n ${BW_SESSION:=$(keyctl pipe $(keyctl request user $key))} ]] ; then
+		BW_SESSION=$BW_SESSION
+	elif BW_SESSION=$(command bw unlock --raw); then
+		# Insert new/update old key
+		# "@us": Default user session keyring
+		: $(keyctl add user $key "$BW_SESSION" @u)
+		set +x
+		((timeout > 0)) && keyctl timeout "$_" $timeout
+	fi
+}
+
+bwutil::edit(){
+	TMPPREFIX=${XDG_RUNTIME_DIR:-/tmp}/bw-edit/
+	TMPSUFFIX=.json
+
+	zmodload zsh/files
+	mkdir $TMPPREFIX
+
+	trap RETURN 'rm -r $TMPPREFIX'
+
+	(){
+		local id REPLY
+		cp $1 $1.bak
+		while :; do
+			${=${VISUAL:-$EDITOR}} $1
+			if diff --color=auto "$1" "$1.bak"; then
+				read -k 1 'REPLY?No edits made. Try again(Y), insert anyway(n), or exit(e)?'
+				case $REPLY:l in
+					n) break ;;
+					e) return 1 ;;
+					*) continue ;;
+				esac
+			fi
+
+			# Check for well-formed json
+			if ! id=$(jq .id -r < "$1"); then
+				read -k 1 'REPLY?Ill-formatted json. Try again(Y), insert anyway(n), or exit(e)?'
+				case $REPLY:l in
+					n) break ;;
+					e) return 1 ;;
+					*) continue ;;
+				esac
+			fi
+			break
+		done
+		set -x
+		bw encode < "$1" | bw edit "$2" "$id"
+	} =(bw get "$@" | jq) "$@"
+}
+
+bwutil::fzf(){
+	local -x BW_SESSION
+	bwutil::get-session || return $?
+
+	local items ret
+	shift
+	items=$(bw list items | jq '.[].id+"\t"+.login') || return 1
+	fzf --with-nth=2.. <<< $items
+}
+
+bwutil(){
+	local action=$functions[(ei)bwutil::$1]
+	if [[ -n $action ]]; then
+		$action "$@"
+	else
+		print -u2 "No helper function bwutil::$1"
+		bwutil::help 1
+	fi
+}
+
+bwutil "$@"
