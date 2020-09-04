@@ -10,6 +10,26 @@ This is a personal project of me replacing my `pass`-based scripts with `bw`-bas
 - `jq` (Command-line JSON parser)
 - `bw` (Bitwarden CLI client)
 
+## bw-edit
+
+A tool to edit an item from your vault in your preferred editor.
+Tests whether any edits occurred and verifies the json is valid before writing it back to the vault.
+
+## bw-menu
+
+Gets the list of item names to select from in fzf.
+Takes a jq filter and a program as arguments;
+the jq filter will be used to select the field
+and the program will receive that field on stdin.
+
+**Exmples:**
+
+```sh
+bin/bw-menu.zsh '.login.password' xclip -sel c
+bin/bw-menu.zsh '.login|.username+"\t".password' ydotool type --file -
+bin/bw-edit.zsh "$(bin/bw-menu.zsh '.id')"
+```
+
 ## pass2bw:
 
 A tool to import zx2c4 password store into Bitwarden.
