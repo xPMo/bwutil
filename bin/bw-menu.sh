@@ -17,11 +17,11 @@ die(){
 shift ||
 	die 'Missing argument.'
 
-items=$(bw list items) ||
+items=$(bw list items | jq -r '.[]|.id+"\t"+.name' ) ||
 	die "bw could not list items."
 
 # printf is a builtin, and so has a better chance to accept large argument lengths
-item=$(printf '%s\n' "$items" | jq '.[].id+"\t"+.login' | fzf --with-nth=2..) ||
+item=$(printf '%s\n' "$items" | fzf --with-nth=2..) ||
 	die "No item selected."
 
 ret=$(bw get item "${item%%$tab*}" | jq -rje "$jq_filter") ||
