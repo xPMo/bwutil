@@ -13,7 +13,6 @@ Environment variables:
 }
 
 bwutil::get-session(){
-set -x
 	local key=${BW_KEY:-bw}
 	local -i timeout=${BW_TIMEOUT:-0}
 	: ${key:=bw}
@@ -83,6 +82,9 @@ bwutil(){
 		$action "$@"
 	else
 		print -u2 "No helper function bwutil::$1"
+		local -x BW_SESSION
+		bwutil::get-session
+		bw "$@" ||
 		bwutil::help 1
 	fi
 }
