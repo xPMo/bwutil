@@ -17,8 +17,9 @@ bwutil::get-session(){
 	local -i timeout=${BW_TIMEOUT:-0}
 	: ${key:=bw}
 	if [[ -n ${BW_SESSION:=$(keyctl pipe $(keyctl request user $key))} ]] ; then
-		BW_SESSION=$BW_SESSION
-	elif BW_SESSION=$(command bw unlock --raw); then
+		return 0
+	fi
+	if BW_SESSION=$(command bw unlock --raw); then
 		# Insert new/update old key
 		# "@u": Default user session keyring
 		: $(keyctl add user $key "$BW_SESSION" @u)
@@ -28,16 +29,17 @@ bwutil::get-session(){
 }
 
 bwutil::edit(){
-	local -x BW_SESSION
+	emulate -L zsh
+	[[ -v BW_SESSION ]] || local -x BW_SESSION
 	bwutil::get-session || return $?
 
 	TMPPREFIX=${XDG_RUNTIME_DIR:-/tmp}/bw-edit/
 	TMPSUFFIX=.json
 
 	zmodload -m -F zsh/files b:'zf_*'
-	mkdir -m 700 $TMPPREFIX
+	zf_mkdir -m 700 $TMPPREFIX
 
-	trap RETURN 'rm -r $TMPPREFIX'
+	trap RETURN 'zf_rm -r $TMPPREFIX'
 
 	(){
 		local id REPLY
@@ -69,25 +71,73 @@ bwutil::edit(){
 	} =(bw get "$@" | jq) "$@"
 }
 
+bwutil::ls(){
+	emulate -L zsh
+	[[ -v BW_SESSION ]] || local -x BW_SESSION
+	bwutil::get-session || return $?
+	bw list items | jq -r '.[]|.id+"\t"+.name'
+}
+
 bwutil::fzf(){
-	local -x BW_SESSION
+	emulate -L zsh
+	[[ -v BW_SESSION ]] || local -x BW_SESSION
 	bwutil::get-session || return $?
 
 	local items ret
-	shift
-	items=$(bw list items | jq '.[].id+"\t"+.login') || return 1
+	items=$(bwutil::ls) || return 1
 	fzf --with-nth=2.. <<< $items
+}
+
+bwutil::menu(){
+set -x
+	emulate -L zsh
+	[[ -v BW_SESSION ]] || local -x BW_SESSION
+	bwutil::get-session || return $?
+	
+	local -a menu action
+	case ${WAYLAND_DISPLAY+w}$2 in
+		wt*)
+			menu=(wofi -p "bw $1" -d -i)
+			action=(ydotool type --file -)
+		;;
+		w*)
+			menu=(wofi -p "bw $1" -d -i)
+			action=(wl-copy)
+		;;
+		t*)
+			menu=(rofi -p "bw $1" -dmenu -i)
+			action=(xdotool type --clearmodifiers --file -)
+		;;
+		*)
+			menu=(rofi -p "bw $1" -dmenu -i)
+			action=(xclip -sel c)
+	esac
+	local item=$(bwutil::ls | $menu | cut -f 1)
+	case $1 in
+		(t|)otp) oathtool -b --totp $(bw get item $item | jq '.login.totp | match("secret=[^&]*").string[7:]')
+			;;
+		*) bw get "$1" "$item"
+	esac | $action
+}
+
+bwutil::transform(){
+	emulate -L zsh
+	[[ -v BW_SESSION ]] || local -x BW_SESSION
+	bwutil::get-session || return $?
+
+	bw list items | jq "$@" | bw encode | bw import bitwardenjson /dev/stdin
 }
 
 bwutil(){
 	emulate -L zsh
-	local action=$functions[(ei)bwutil::$1]
+	[[ -v BW_SESSION ]] || local -x BW_SESSION
+	bwutil::get-session || return $?
 
-	local -x BW_SESSION
-	bwutil::get-session
+	local action=$functions[(ei)bwutil::$1]
+	: ${action:=$commands[(ei)bwutil::$1]}
 
 	if [[ -n $action ]]; then
-		$action "$@"
+		BW_SESSION=$BW_SESSION $action "${@:2}"
 	else
 		print -u2 "No helper function bwutil::$1"
 		bw "$@" || bwutil::help 1
