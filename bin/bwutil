@@ -113,7 +113,7 @@ set -x
 			action=(xclip -sel c)
 	esac
 	local item=$(bwutil::ls | $menu | cut -f 1)
-	case $1 in
+	case $1 in # quick and dirty, assume default 6 char 30 sec
 		(t|)otp) oathtool -b --totp $(bw get item $item | jq '.login.totp | match("secret=[^&]*").string[7:]')
 			;;
 		*) bw get "$1" "$item"
