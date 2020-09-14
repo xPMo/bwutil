@@ -89,11 +89,11 @@ bwutil::fzf(){
 }
 
 bwutil::menu(){
-set -x
 	emulate -L zsh
 	[[ -v BW_SESSION ]] || local -x BW_SESSION
 	bwutil::get-session || return $?
 	
+	: ${1:?Missing argument (item/password/user/totp/...)}
 	local -a menu action
 	case ${WAYLAND_DISPLAY+w}$2 in
 		wt*)
