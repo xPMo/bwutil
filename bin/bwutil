@@ -23,8 +23,8 @@ bwutil::get-session(){
 		# Insert new/update old key
 		# "@u": Default user session keyring
 		: $(keyctl add user $key "$BW_SESSION" @u)
-		set +x
 		((timeout > 0)) && keyctl timeout "$_" $timeout
+		return 0
 	fi
 }
 
