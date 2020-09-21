@@ -16,7 +16,7 @@ bwutil::get-session(){
 	local key=${BW_KEY:-bw}
 	local -i timeout=${BW_TIMEOUT:-0}
 	: ${key:=bw}
-	if [[ -n ${BW_SESSION:=$(keyctl pipe $(keyctl request user $key))} ]] ; then
+	if [[ -n ${BW_SESSION:=$(keyctl pipe $(keyctl search @u user $key))} ]] ; then
 		return 0
 	fi
 	if BW_SESSION=$(command bw unlock --raw); then
