@@ -13,17 +13,20 @@ Environment variables:
 }
 
 bwutil::get-session(){
-	local key=${BW_KEY:-bw}
+	local name=${BW_KEY:-bw} key=
 	local -i timeout=${BW_TIMEOUT:-0}
-	: ${key:=bw}
-	if [[ -n ${BW_SESSION:=$(keyctl pipe $(keyctl search @u user $key))} ]] ; then
+	: ${name:=bw}
+	key=$(keyctl search @u user $name)
+	if [[ -n ${BW_SESSION:=$(keyctl pipe $key)} ]] ; then
+		# reset timeout
+		((timeout > 0)) && keyctl timeout "$key" $timeout
 		return 0
 	fi
 	if BW_SESSION=$(command bw unlock --raw); then
 		# Insert new/update old key
 		# "@u": Default user session keyring
-		: $(keyctl add user $key "$BW_SESSION" @u)
-		((timeout > 0)) && keyctl timeout "$_" $timeout
+		key=$(keyctl add user "$name" "$BW_SESSION" @u)
+		((timeout > 0)) && keyctl timeout "$key" $timeout
 		return 0
 	fi
 }
