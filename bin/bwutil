@@ -6,8 +6,9 @@ bwutil::help(){
 "	${(@)^functions[(I)bwutil*]}" \
 "
 Environment variables:
-	BW_KEY         key name given to keyctl
-	BW_TIMEOUT     revokation timeout given to keyctl
+	BW_KEY                key name given to keyctl
+	BW_TIMEOUT            revokation timeout given to keyctl
+	BW_CLIPBOARD_TIMEOUT  time before clearing clipboard
 "
 	return "$1"
 }
@@ -97,6 +98,7 @@ bwutil::menu(){
 	
 	: ${1:?Missing argument (item/password/user/totp/...)}
 	local -a menu action
+	local -i post
 	case ${WAYLAND_DISPLAY+w}$2 in
 		wt*)
 			menu=(wofi -p "bw $1" -d -i)
@@ -105,6 +107,7 @@ bwutil::menu(){
 		w*)
 			menu=(wofi -p "bw $1" -d -i)
 			action=(wl-copy)
+			post=1
 		;;
 		t*)
 			menu=(rofi -p "bw $1" -dmenu -i)
@@ -113,8 +116,13 @@ bwutil::menu(){
 		*)
 			menu=(rofi -p "bw $1" -dmenu -i)
 			action=(xclip -sel c)
+			post=1
 	esac
 	local item=$(bwutil::ls | $menu | cut -f 1)
+	((post)) && { # clear clipboard after 30s
+		sleep ${BW_CLIPBOARD_TIMEOUT:-30} || kill 0
+		$action <<< ''
+	} &
 	case $1 in # quick and dirty, assume default 6 char 30 sec
 		(t|)otp) oathtool -b --totp $(bw get item $item | jq '.login.totp | match("secret=[^&]*").string[7:]')
 			;;
