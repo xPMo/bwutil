@@ -69,7 +69,6 @@ bwutil::edit(){
 			fi
 			break
 		done
-		set -x
 		bw encode < "$1" | bw edit "$2" "$id"
 	} =(bw get "$@" | jq) "$@"
 }
@@ -128,7 +127,7 @@ bwutil::transform(){
 	[[ -v BW_SESSION ]] || local -x BW_SESSION
 	bwutil::get-session || return $?
 
-	bw list items | jq "$@" | bw encode | bw import bitwardenjson /dev/stdin
+	bw export | jq "$@" | bw encode | bw import bitwardenjson /dev/stdin
 }
 
 bwutil(){
