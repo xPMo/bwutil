@@ -124,7 +124,12 @@ bwutil::menu(){
 		$action <<< ''
 	} &
 	case $1 in # quick and dirty, assume default 6 char 30 sec
-		(t|)otp) oathtool -b --totp $(bw get item $item | jq '.login.totp | match("secret=[^&]*").string[7:]')
+		(t|)otp)
+			if item=$(bw get item $item | jq -re '.login.totp | match("secret=[^&]*").string[7:]'); then 
+				oathtool -b --totp $item
+			else
+				return 1
+			fi
 			;;
 		*) bw get "$1" "$item"
 	esac | $action
