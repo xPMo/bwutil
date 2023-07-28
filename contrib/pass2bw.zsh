@@ -10,7 +10,7 @@ typeset -g help_text="Usage: $0 [OPTIONS] pass-name ...
 OPTIONS:
 	-A, --all               Import all passwords, ignore the commnd line pass-names
 	    --session SESSION   Set BW_SESSION (see \`bw unlock --help\`)
-	-n, --dry-run           Set BW_SESSION (see \`bw unlock --help\`)
+	-n, --dry-run           Write out the json that would be passed to \`bw encode\`
 	-v, --verbose           Increase verbosity
 	-h, --help              Show this help
 "
